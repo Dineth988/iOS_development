@@ -1,10 +1,12 @@
 import SwiftUI
 
+// 1. Updated GameInfo to carry its associated GameMode
 private struct GameInfo {
     let title: String
     let tagline: String
     let icon: String
     let gradient: [Color]
+    let mode: GameMode
 }
 
 private enum Games {
@@ -12,23 +14,29 @@ private enum Games {
         title: "Tap Frenzy",
         tagline: "Fast taps, faster reflexes",
         icon: "hand.tap.fill",
-        gradient: [Color(red: 1.0, green: 0.42, blue: 0.29), Color(red: 0.55, green: 0.13, blue: 0.16)]
+        gradient: [Color(red: 1.0, green: 0.42, blue: 0.29), Color(red: 0.55, green: 0.13, blue: 0.16)],
+        mode: .tapFrenzy
     )
     static let lightItUp = GameInfo(
         title: "Light It Up",
         tagline: "Spot the lit tile before it fades",
         icon: "square.grid.3x3.fill.square",
-        gradient: [Color(red: 0.16, green: 0.83, blue: 0.65), Color(red: 0.04, green: 0.42, blue: 0.42)]
+        gradient: [Color(red: 0.16, green: 0.83, blue: 0.65), Color(red: 0.04, green: 0.42, blue: 0.42)],
+        mode: .lightItUp
     )
     static let quizRush = GameInfo(
         title: "Quiz Rush",
         tagline: "Answer fast, build your streak",
         icon: "bolt.horizontal.circle.fill",
-        gradient: [Color(red: 0.42, green: 0.32, blue: 0.78), Color(red: 0.19, green: 0.14, blue: 0.42)]
+        gradient: [Color(red: 0.42, green: 0.32, blue: 0.78), Color(red: 0.19, green: 0.14, blue: 0.42)],
+        mode: .quizRush
     )
 }
 
 struct HomeView: View {
+    // 2. Instantiated StatsViewModel to grab real-time game personal best scores
+    @StateObject private var statsViewModel = StatsViewModel()
+    
     var body: some View {
         NavigationStack {
             ZStack {
@@ -50,10 +58,11 @@ struct HomeView: View {
                             .foregroundColor(AppTheme.textPrimary)
                     }
 
+                    // 3. Passing statsViewModel down to evaluate individual high scores
                     VStack(spacing: 16) {
-                        GameCardLink(info: Games.tapFrenzy) { TapFrenzyView() }
-                        GameCardLink(info: Games.lightItUp) { LightItUpView() }
-                        GameCardLink(info: Games.quizRush) { QuizRushView() }
+                        GameCardLink(info: Games.tapFrenzy, statsViewModel: statsViewModel) { TapFrenzyView() }
+                        GameCardLink(info: Games.lightItUp, statsViewModel: statsViewModel) { LightItUpView() }
+                        GameCardLink(info: Games.quizRush, statsViewModel: statsViewModel) { QuizRushView() }
                     }
                     .padding(.horizontal, 20)
 
@@ -69,6 +78,7 @@ struct HomeView: View {
 
 private struct GameCardLink<Destination: View>: View {
     let info: GameInfo
+    @ObservedObject var statsViewModel: StatsViewModel
     @ViewBuilder let destination: () -> Destination
 
     var body: some View {
@@ -95,6 +105,13 @@ private struct GameCardLink<Destination: View>: View {
 
                 Spacer()
 
+                // 4. Integrated HighScoreBubble conditionally between the info stack and the chevron
+                let personalBest = statsViewModel.personalBest(for: info.mode)
+                if personalBest > 0 {
+                    HighScoreBubble(score: personalBest)
+                        .padding(.trailing, 2)
+                }
+
                 Image(systemName: "chevron.right")
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(.white.opacity(0.7))
@@ -110,7 +127,6 @@ private struct GameCardLink<Destination: View>: View {
         .buttonStyle(CardPressStyle())
     }
 }
-
 
 private struct CardPressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
